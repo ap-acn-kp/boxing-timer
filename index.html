@@ -275,7 +275,7 @@
   }
   .btn-reset:hover { color: var(--white); border-color: #555; }
 
-  /* ── VOICE + STATUS ── */
+  /* ── STATUS ── */
   .bottom-row {
     display: flex;
     align-items: center;
@@ -288,19 +288,6 @@
     color: #444;
     text-transform: uppercase;
   }
-  .voice-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #2a2a2a;
-    flex-shrink: 0;
-    transition: background .3s, box-shadow .3s;
-  }
-  .voice-dot.active {
-    background: #2a6b3a;
-    box-shadow: 0 0 8px rgba(42,107,58,.7);
-    animation: flash .9s infinite;
-  }
-  .voice-dot.error { background: #6b2a2a; }
 
   .wake-indicator {
     font-size: 0.6rem;
@@ -445,7 +432,6 @@
   </div>
 
   <div class="bottom-row">
-    <div class="voice-dot" id="voiceDot"></div>
     <div class="status-msg" id="statusMsg">Tap start when ready</div>
   </div>
   <div class="wake-indicator" id="wakeIndicator">screen lock: off</div>
@@ -926,61 +912,11 @@ function handleReset() {
   releaseWakeLock();
 }
 
-// ─── VOICE COMMANDS (always-on, no button needed) ────────────────────────────
-let recognition = null;
-
-function setVoiceDot(mode) {
-  const dot = document.getElementById('voiceDot');
-  dot.className = 'voice-dot' + (mode === 'active' ? ' active' : mode === 'error' ? ' error' : '');
-}
-
-function startVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    setVoiceDot('error');
-    return; // silently skip — no UI noise for unsupported browsers
-  }
-
-  recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = false;
-  recognition.lang = 'en-US';
-
-  recognition.onstart = () => setVoiceDot('active');
-
-  recognition.onresult = (e) => {
-    const last = e.results[e.results.length - 1];
-    const cmd  = last[0].transcript.trim().toLowerCase();
-    console.log('Voice:', cmd);
-    if      (/\bstart\b/.test(cmd)  && state === 'idle')                          handleStart();
-    else if (/\bpause\b/.test(cmd)  && state !== 'idle' && state !== 'done' && state !== 'paused') handlePause();
-    else if (/\bresume\b/.test(cmd) && state === 'paused')                        handlePause();
-    else if (/\breset\b/.test(cmd))                                               handleReset();
-  };
-
-  recognition.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      setVoiceDot('error');
-    }
-    // 'no-speech' and 'aborted' are non-fatal — onend will restart
-  };
-
-  recognition.onend = () => {
-    // Auto-restart to keep listening forever
-    setTimeout(() => {
-      try { recognition.start(); } catch(e) {}
-    }, 300);
-  };
-
-  try { recognition.start(); } catch(e) {}
-}
-
 // ─── INIT ────────────────────────────────────────────────────────────────────
 buildDots();
 setDisplay();
 updateRing(CFG.roundSecs, CFG.roundSecs);
 updateSubtitle();
-startVoice(); // begin listening immediately
 </script>
 </body>
 </html>
