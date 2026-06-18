@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boxing Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #e8192c;
+    --red-dark: #a50f1e;
+    --gold: #f5a623;
+    --blue: #3a9bd5;
+    --white: #f0ede8;
+    --black: #0a0a0a;
+    --gray: #1a1a1a;
+    --gray2: #2a2a2a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    position: relative;
+  }
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    width: 160px; height: 160px;
+    border: 3px solid var(--red);
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  body::before { top:0; left:0; border-right:none; border-bottom:none; }
+  body::after  { bottom:0; right:0; border-left:none; border-top:none; }
+  .corner-br { position:fixed; top:0; right:0; width:160px; height:160px; border:3px solid var(--red); border-left:none; border-bottom:none; opacity:.12; pointer-events:none; }
+  .corner-tl { position:fixed; bottom:0; left:0; width:160px; height:160px; border:3px solid var(--red); border-right:none; border-top:none; opacity:.12; pointer-events:none; }
+
+  .container {
+    text-align: center;
+    z-index: 1;
+    width: 100%;
+    max-width: 500px;
+    padding: 16px 20px 20px;
+  }
+
+  /* ── HEADER ── */
+  .header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.6rem;
+    letter-spacing: 6px;
+    color: var(--red);
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(232,25,44,0.4);
+    text-align: left;
+  }
+  .gear-btn {
+    background: none;
+    border: 1px solid #333;
+    color: #555;
+    width: 38px; height: 38px;
+    border-radius: 4px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: color .2s, border-color .2s;
+    flex-shrink: 0;
+  }
+  .gear-btn:hover { color: var(--white); border-color: #666; }
+
+  .subtitle {
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    text-align: left;
+  }
+
+  /* ── SETTINGS PANEL ── */
+  .settings-panel {
+    background: var(--gray);
+    border: 1px solid #2e2e2e;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 14px;
+    display: none;
+    text-align: left;
+  }
+  .settings-panel.open { display: block; }
+  .settings-title {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 4px;
+    font-size: 1rem;
+    color: #888;
+    margin-bottom: 12px;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .setting-item label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: #666;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .setting-item input {
+    width: 100%;
+    background: var(--gray2);
+    border: 1px solid #333;
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    padding: 6px 10px;
+    border-radius: 3px;
+    text-align: center;
+    outline: none;
+  }
+  .setting-item input:focus { border-color: var(--red); }
+  .settings-apply {
+    margin-top: 12px;
+    width: 100%;
+    background: var(--red);
+    color: var(--white);
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 4px;
+    font-size: 1.1rem;
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: box-shadow .2s;
+  }
+  .settings-apply:hover { box-shadow: 0 4px 20px rgba(232,25,44,.4); }
+
+  /* ── ROUND DOTS ── */
+  .rounds-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .round-dot {
+    width: 24px; height: 6px;
+    background: var(--gray2);
+    border-radius: 3px;
+    transition: background .3s, box-shadow .3s;
+  }
+  .round-dot.done   { background: var(--red-dark); }
+  .round-dot.active { background: var(--red); box-shadow: 0 0 10px var(--red); }
+
+  /* ── PHASE LABELS ── */
+  .phase-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 8px;
+    margin-bottom: 2px;
+    transition: color .3s;
+    min-height: 1.4rem;
+  }
+  .phase-label.fight  { color: var(--red); }
+  .phase-label.rest   { color: var(--gold); }
+  .phase-label.buffer { color: var(--blue); }
+  .phase-label.ready  { color: #555; }
+
+  .round-info {
+    font-size: 0.75rem;
+    letter-spacing: 3px;
+    color: #555;
+    margin-bottom: 10px;
+    min-height: 1.2rem;
+    text-transform: uppercase;
+  }
+
+  /* ── TIMER RING ── */
+  .timer-ring {
+    position: relative;
+    width: 210px; height: 210px;
+    margin: 0 auto 20px;
+  }
+  .timer-ring svg {
+    position: absolute; top:0; left:0;
+    transform: rotate(-90deg);
+  }
+  .ring-bg { fill:none; stroke:var(--gray2); stroke-width:6; }
+  .ring-progress { fill:none; stroke-width:6; stroke-linecap:round; transition: stroke-dashoffset .8s linear, stroke .3s; }
+  .timer-display {
+    position: absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .timer-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5.2rem;
+    line-height: 1;
+    letter-spacing: 4px;
+    transition: color .3s;
+  }
+  .timer-number.fight  { color: var(--white); }
+  .timer-number.rest   { color: var(--gold); }
+  .timer-number.buffer { color: var(--blue); }
+  .timer-number.ready  { color: #444; }
+
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .flashing { animation: flash .5s infinite; }
+
+  @keyframes ringPulse {
+    0%  { box-shadow:0 0 0 0 rgba(232,25,44,.8); }
+    70% { box-shadow:0 0 0 35px rgba(232,25,44,0); }
+    100%{ box-shadow:0 0 0 0 rgba(232,25,44,0); }
+  }
+  @keyframes ringPulseGold {
+    0%  { box-shadow:0 0 0 0 rgba(245,166,35,.8); }
+    70% { box-shadow:0 0 0 35px rgba(245,166,35,0); }
+    100%{ box-shadow:0 0 0 0 rgba(245,166,35,0); }
+  }
+  .pulse-red  { animation: ringPulse .7s ease-out; }
+  .pulse-gold { animation: ringPulseGold .7s ease-out; }
+
+  /* ── BUTTONS ── */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .btn {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 4px;
+    font-size: 1.25rem;
+    padding: 13px 36px;
+    border: none;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: transform .1s, box-shadow .2s;
+    text-transform: uppercase;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-start {
+    background: var(--red);
+    color: var(--white);
+    box-shadow: 0 4px 20px rgba(232,25,44,.35);
+  }
+  .btn-start:hover { box-shadow: 0 6px 28px rgba(232,25,44,.55); }
+  .btn-pause {
+    background: var(--gray2);
+    color: var(--white);
+    border: 1px solid #333;
+  }
+  .btn-pause:hover { background: #333; }
+  .btn-reset {
+    background: transparent;
+    color: #555;
+    border: 1px solid #333;
+    padding: 13px 20px;
+    font-size: 1rem;
+  }
+  .btn-reset:hover { color: var(--white); border-color: #555; }
+
+  /* ── VOICE + STATUS ── */
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .status-msg {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: #444;
+    text-transform: uppercase;
+  }
+  .voice-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    flex-shrink: 0;
+    transition: background .3s, box-shadow .3s;
+  }
+  .voice-dot.active {
+    background: #2a6b3a;
+    box-shadow: 0 0 8px rgba(42,107,58,.7);
+    animation: flash .9s infinite;
+  }
+  .voice-dot.error { background: #6b2a2a; }
+
+  .wake-indicator {
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: #333;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+  .wake-indicator.active { color: #2a6; }
+
+  /* ── VOLUME SLIDER ── */
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .volume-row label {
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: #888;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .volume-row input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--gray2);
+    border-radius: 2px;
+    outline: none;
+  }
+  .volume-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--red);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(232,25,44,.5);
+  }
+  .volume-row input[type="range"]::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--red);
+    border: none;
+    cursor: pointer;
+  }
+  .volume-row span {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.95rem;
+    color: var(--white);
+    width: 38px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .test-sound-btn {
+    margin-top: 10px;
+    width: 100%;
+    background: var(--gray2);
+    color: #aaa;
+    border: 1px solid #3a3a3a;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+    padding: 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+  }
+  .test-sound-btn:hover { color: var(--white); border-color: #555; }
+</style>
+</head>
+<body>
+<div class="corner-br"></div>
+<div class="corner-tl"></div>
+
+<div class="container">
+
+  <div class="header-row">
+    <div>
+      <div class="title">Fight<br>Timer</div>
+    </div>
+    <button class="gear-btn" onclick="toggleSettings()" title="Settings">⚙</button>
+  </div>
+  <div class="subtitle" id="subtitle">12 Rounds · 2:00 Work · 0:30 Rest · 15s Buffer</div>
+
+  <!-- Settings panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-title">Workout Settings</div>
+    <div class="settings-grid">
+      <div class="setting-item">
+        <label>Rounds</label>
+        <input type="number" id="setRounds" min="1" max="30" value="12">
+      </div>
+      <div class="setting-item">
+        <label>Round Time (sec)</label>
+        <input type="number" id="setRoundSecs" min="10" max="600" value="120">
+      </div>
+      <div class="setting-item">
+        <label>Rest Time (sec)</label>
+        <input type="number" id="setRestSecs" min="5" max="300" value="30">
+      </div>
+      <div class="setting-item">
+        <label>Buffer Time (sec)</label>
+        <input type="number" id="setBufferSecs" min="0" max="60" value="15">
+      </div>
+    </div>
+    <button class="settings-apply" onclick="applySettings()">Apply Settings</button>
+
+    <div class="volume-row">
+      <label>🔊 Volume</label>
+      <input type="range" id="volumeSlider" min="0" max="100" value="80" oninput="handleVolumeChange(this.value)">
+      <span id="volumeValue">80%</span>
+    </div>
+    <button class="test-sound-btn" onclick="getAudio(); bellSound();">Test Bell Sound</button>
+  </div>
+
+  <div class="rounds-row" id="roundDots"></div>
+
+  <div class="phase-label ready" id="phaseLabel">READY</div>
+  <div class="round-info" id="roundInfo">Press Start to begin</div>
+
+  <div class="timer-ring" id="timerRing">
+    <svg width="210" height="210" viewBox="0 0 210 210">
+      <circle class="ring-bg" cx="105" cy="105" r="96"/>
+      <circle class="ring-progress" id="ringProgress" cx="105" cy="105" r="96"
+        stroke-dasharray="603.2" stroke-dashoffset="0" stroke="var(--red)"/>
+    </svg>
+    <div class="timer-display">
+      <div class="timer-number ready" id="timerNumber">2:00</div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-start" id="startBtn" onclick="handleStart()">Start</button>
+    <button class="btn btn-pause" id="pauseBtn" onclick="handlePause()" style="display:none">Pause</button>
+    <button class="btn btn-reset" onclick="handleReset()">Reset</button>
+  </div>
+
+  <div class="bottom-row">
+    <div class="voice-dot" id="voiceDot"></div>
+    <div class="status-msg" id="statusMsg">Tap start when ready</div>
+  </div>
+  <div class="wake-indicator" id="wakeIndicator">screen lock: off</div>
+
+</div>
+
+<script>
+// ─── CONFIG (mutable) ────────────────────────────────────────────────────────
+let CFG = { rounds: 12, roundSecs: 120, restSecs: 30, bufferSecs: 15 };
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state       = 'idle';   // idle | buffer | fight | rest | done
+let currentRound = 1;
+let secondsLeft  = CFG.roundSecs;
+let wakeLock     = null;
+
+// ─── WEB AUDIO ───────────────────────────────────────────────────────────────
+let audioCtx   = null;
+let masterGain = null;
+let userVolume = 0.8; // 0.0 - 1.0, controlled by slider
+
+function getAudio() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = userVolume;
+    masterGain.connect(audioCtx.destination);
+    keepAudioAlive();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(()=>{});
+  }
+  return audioCtx;
+}
+
+function setVolume(v) {
+  userVolume = Math.min(1, Math.max(0, v));
+  if (masterGain) masterGain.gain.value = userVolume;
+}
+
+// iOS Safari suspends AudioContext shortly after the last user gesture.
+// Playing a silent buffer periodically keeps it alive indefinitely.
+function keepAudioAlive() {
+  if (!audioCtx) return;
+  try {
+    const buf = audioCtx.createBuffer(1, 1, 22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(0);
+  } catch(e) { /* ignore — non-fatal */ }
+  setTimeout(keepAudioAlive, 15000);
+}
+
+// Core tone builder — routes through masterGain so volume slider affects everything
+function tone(freq, startOffset, dur, type = 'square', vol = 0.5) {
+  try {
+    const ctx  = getAudio();
+    const t    = ctx.currentTime + startOffset;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.start(t);
+    osc.stop(t + dur + 0.01);
+  } catch(e) { console.warn('audio tone failed', e); }
+}
+
+// Authentic boxing bell — metallic clang with fast attack, long ring decay
+function bellSound() {
+  try {
+    const ctx = getAudio();
+    const t   = ctx.currentTime;
+    [420, 427, 840, 1260].forEach((f, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(masterGain);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t);
+      const vol = i < 2 ? 0.5 : 0.2;
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
+      osc.start(t); osc.stop(t + 2.6);
+    });
+    const bufLen = Math.floor(ctx.sampleRate * 0.04);
+    const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1);
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const noiseGain = ctx.createGain();
+    noise.connect(noiseGain); noiseGain.connect(masterGain);
+    noiseGain.gain.setValueAtTime(0.35, t);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+    noise.start(t); noise.stop(t + 0.05);
+  } catch(e) { console.warn('bell failed', e); }
+}
+
+// End-of-round bell: rings 3 times (classic boxing)
+function endRoundBell() {
+  bellSound();
+  setTimeout(() => { if (audioCtx) bellSound(); }, 700);
+  setTimeout(() => { if (audioCtx) bellSound(); }, 1400);
+}
+
+// Start-of-round bell: single ring
+function startRoundBell() {
+  bellSound();
+}
+
+function tapBurst(pitch, vol) {
+  try {
+    const ctx = getAudio();
+    const t   = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const offset = i * 0.18;
+      const bufLen = Math.floor(ctx.sampleRate * 0.05);
+      const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const data   = buf.getChannelData(0);
+      for (let j = 0; j < bufLen; j++) data[j] = (Math.random() * 2 - 1);
+      const src  = ctx.createBufferSource();
+      src.buffer = buf;
+      const bpf  = ctx.createBiquadFilter();
+      bpf.type = 'bandpass';
+      bpf.frequency.value = pitch;
+      bpf.Q.value = 3.5;
+      const gain = ctx.createGain();
+      src.connect(bpf); bpf.connect(gain); gain.connect(masterGain);
+      const ti = t + offset;
+      gain.gain.setValueAtTime(vol, ti);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ti + 0.05);
+      src.start(ti); src.stop(ti + 0.06);
+    }
+  } catch(e) { console.warn('tap failed', e); }
+}
+
+// 10-second fight warning: three sharp wood-block taps
+function fightWarningTap() { tapBurst(900, 0.9); }
+
+// 5-second rest warning: same triple tap, lower pitch
+function restWarningTap() { tapBurst(550, 0.7); }
+
+// Buffer countdown beep
+function bufferBeep() {
+  tone(550, 0, 0.07, 'sine', 0.3);
+}
+
+// ─── WAKE LOCK ───────────────────────────────────────────────────────────────
+async function requestWakeLock() {
+  const indicator = document.getElementById('wakeIndicator');
+  if (location.protocol === 'file:') {
+    indicator.textContent = 'screen lock: needs hosting (not file://)';
+    indicator.className = 'wake-indicator';
+    return;
+  }
+  if (!('wakeLock' in navigator)) {
+    indicator.textContent = 'screen lock: unsupported browser';
+    indicator.className = 'wake-indicator';
+    return;
+  }
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    indicator.textContent = 'screen lock: prevented ✓';
+    indicator.className = 'wake-indicator active';
+    wakeLock.addEventListener('release', () => {
+      indicator.textContent = 'screen lock: off';
+      indicator.className = 'wake-indicator';
+    });
+  } catch(e) {
+    indicator.textContent = 'screen lock: failed';
+    indicator.className = 'wake-indicator';
+    console.log('WakeLock:', e);
+  }
+}
+async function releaseWakeLock() {
+  if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && (state === 'fight' || state === 'rest' || state === 'buffer')) {
+    await requestWakeLock();
+    // Also resume audio context
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+});
+
+// ─── TIMING via AudioContext clock (drift-free, survives background) ─────────
+let scheduledNextTick = null;
+const TICK_INTERVAL = 1.0; // seconds
+
+function scheduleTick() {
+  if (state === 'idle' || state === 'done' || state === 'paused') return;
+  const ctx = getAudio();
+  scheduledNextTick = ctx.currentTime + TICK_INTERVAL;
+  const delay = (scheduledNextTick - ctx.currentTime) * 1000;
+  setTimeout(tick, delay);
+}
+
+// ─── TIMER LOGIC ─────────────────────────────────────────────────────────────
+function tick() {
+  if (state === 'idle' || state === 'done' || state === 'paused') return;
+
+  secondsLeft = Math.max(0, secondsLeft - 1);
+
+  // ── Buffer countdown ──
+  if (state === 'buffer') {
+    if (secondsLeft <= 3 && secondsLeft > 0) bufferBeep();
+    if (secondsLeft <= 0) {
+      state = 'fight';
+      currentRound = 1;
+      secondsLeft = CFG.roundSecs;
+      startRoundBell();
+      pulse('red');
+      updateDots();
+    }
+    updateRing(secondsLeft, state === 'buffer' ? CFG.bufferSecs : CFG.roundSecs);
+    setDisplay();
+    scheduleTick();
+    return;
+  }
+
+  // ── Fight countdown taps (last 10 sec, once at exactly 10) ──
+  if (state === 'fight' && secondsLeft === 10) fightWarningTap();
+
+  // ── Rest 5-second warning ──
+  if (state === 'rest' && secondsLeft === 5) restWarningTap();
+
+  // ── Transition at 0 ──
+  if (secondsLeft <= 0) {
+    if (state === 'fight') {
+      pulse('gold');
+      endRoundBell();
+      if (currentRound >= CFG.rounds) {
+        // Done
+        state = 'done';
+        secondsLeft = 0;
+        updateRing(0, CFG.roundSecs);
+        setDisplay(); updateDots();
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('pauseBtn').style.display = 'none';
+        setStatus('🥊 All ' + CFG.rounds + ' rounds complete!');
+        releaseWakeLock();
+        return;
+      }
+      state = 'rest';
+      secondsLeft = CFG.restSecs;
+    } else if (state === 'rest') {
+      currentRound++;
+      state = 'fight';
+      secondsLeft = CFG.roundSecs;
+      pulse('red');
+      startRoundBell();
+      updateDots();
+    }
+  }
+
+  const total = state === 'rest' ? CFG.restSecs : CFG.roundSecs;
+  updateRing(secondsLeft, total);
+  setDisplay();
+  updateDots();
+  scheduleTick();
+}
+
+// ─── DISPLAY ─────────────────────────────────────────────────────────────────
+const circumference = 2 * Math.PI * 96; // r=96 → ~603.2
+
+function updateRing(secs, total) {
+  const offset = circumference * (1 - secs / total);
+  const ring = document.getElementById('ringProgress');
+  ring.style.strokeDashoffset = offset;
+  ring.style.stroke =
+    state === 'rest'   ? 'var(--gold)' :
+    state === 'buffer' ? 'var(--blue)' : 'var(--red)';
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+function setDisplay() {
+  const num   = document.getElementById('timerNumber');
+  const label = document.getElementById('phaseLabel');
+  const info  = document.getElementById('roundInfo');
+  num.textContent = formatTime(secondsLeft);
+
+  if (state === 'buffer') {
+    num.className   = 'timer-number buffer';
+    label.className = 'phase-label buffer';
+    label.textContent = 'GET READY';
+    info.textContent  = 'Round 1 starts soon';
+    num.classList.remove('flashing');
+  } else if (state === 'fight') {
+    num.className   = 'timer-number fight';
+    label.className = 'phase-label fight';
+    label.textContent = 'FIGHT';
+    info.textContent  = `Round ${currentRound} of ${CFG.rounds}`;
+    num.classList.toggle('flashing', secondsLeft <= 10 && secondsLeft > 0);
+  } else if (state === 'rest') {
+    num.className   = 'timer-number rest';
+    label.className = 'phase-label rest';
+    label.textContent = 'REST';
+    info.textContent  = `Next: Round ${currentRound + 1} of ${CFG.rounds}`;
+    num.classList.remove('flashing');
+  } else if (state === 'done') {
+    num.className   = 'timer-number fight';
+    label.className = 'phase-label fight';
+    label.textContent = 'DONE';
+    info.textContent  = 'Workout Complete!';
+    num.classList.remove('flashing');
+    num.textContent = '0:00';
+  } else {
+    num.className   = 'timer-number ready';
+    label.className = 'phase-label ready';
+    label.textContent = 'READY';
+    info.textContent  = 'Press Start to begin';
+    num.classList.remove('flashing');
+  }
+}
+
+function pulse(color) {
+  const ring = document.getElementById('timerRing');
+  ring.classList.remove('pulse-red','pulse-gold');
+  void ring.offsetWidth;
+  ring.classList.add(color === 'gold' ? 'pulse-gold' : 'pulse-red');
+}
+
+function updateDots() {
+  for (let i = 1; i <= CFG.rounds; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    if (!dot) continue;
+    dot.className = 'round-dot' +
+      (i < currentRound ? ' done' :
+       i === currentRound && (state === 'fight' || state === 'rest') ? ' active' : '');
+  }
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────────
+function buildDots() {
+  const container = document.getElementById('roundDots');
+  container.innerHTML = '';
+  for (let i = 1; i <= CFG.rounds; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'round-dot';
+    dot.id = `dot-${i}`;
+    container.appendChild(dot);
+  }
+}
+
+function updateSubtitle() {
+  const rt = CFG.roundSecs >= 60
+    ? `${Math.floor(CFG.roundSecs/60)}:${(CFG.roundSecs%60).toString().padStart(2,'0')}`
+    : `0:${CFG.roundSecs.toString().padStart(2,'0')}`;
+  const rs = CFG.restSecs >= 60
+    ? `${Math.floor(CFG.restSecs/60)}:${(CFG.restSecs%60).toString().padStart(2,'0')}`
+    : `0:${CFG.restSecs.toString().padStart(2,'0')}`;
+  document.getElementById('subtitle').textContent =
+    `${CFG.rounds} Rounds · ${rt} Work · ${rs} Rest · ${CFG.bufferSecs}s Buffer`;
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.classList.toggle('open');
+}
+
+let volumePreviewTimer = null;
+function handleVolumeChange(val) {
+  const v = parseInt(val) / 100;
+  setVolume(v);
+  document.getElementById('volumeValue').textContent = val + '%';
+  // Debounced preview tap so the user can hear the level while dragging
+  clearTimeout(volumePreviewTimer);
+  volumePreviewTimer = setTimeout(() => { tapBurst(900, 0.9); }, 150);
+}
+
+function applySettings() {
+  const r  = parseInt(document.getElementById('setRounds').value)     || 12;
+  const rs = parseInt(document.getElementById('setRoundSecs').value)  || 120;
+  const re = parseInt(document.getElementById('setRestSecs').value)   || 30;
+  const b  = parseInt(document.getElementById('setBufferSecs').value) || 15;
+  CFG = {
+    rounds:     Math.min(Math.max(r,  1), 30),
+    roundSecs:  Math.min(Math.max(rs, 10), 600),
+    restSecs:   Math.min(Math.max(re, 5),  300),
+    bufferSecs: Math.min(Math.max(b,  0),  60),
+  };
+  // Sync inputs back in case of clamping
+  document.getElementById('setRounds').value    = CFG.rounds;
+  document.getElementById('setRoundSecs').value = CFG.roundSecs;
+  document.getElementById('setRestSecs').value  = CFG.restSecs;
+  document.getElementById('setBufferSecs').value= CFG.bufferSecs;
+  document.getElementById('settingsPanel').classList.remove('open');
+  handleReset();
+  updateSubtitle();
+}
+
+// ─── CONTROLS ────────────────────────────────────────────────────────────────
+function handleStart() {
+  getAudio(); // unlock on gesture — also starts keep-alive loop
+  if (state === 'idle') {
+    if (CFG.bufferSecs > 0) {
+      state = 'buffer';
+      secondsLeft = CFG.bufferSecs;
+      bufferBeep();
+    } else {
+      state = 'fight';
+      currentRound = 1;
+      secondsLeft = CFG.roundSecs;
+      startRoundBell();
+      pulse('red');
+    }
+    requestWakeLock();
+  }
+  document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'inline-block';
+  document.getElementById('pauseBtn').textContent = 'Pause';
+  setStatus('Timer running');
+  updateDots();
+  updateRing(secondsLeft, state === 'buffer' ? CFG.bufferSecs : CFG.roundSecs);
+  setDisplay();
+  scheduleTick();
+}
+
+function handlePause() {
+  if (state !== 'paused') {
+    state = 'paused';
+    document.getElementById('pauseBtn').textContent = 'Resume';
+    setStatus('Paused');
+    releaseWakeLock();
+  } else {
+    // restore correct phase
+    const prevState = document.getElementById('pauseBtn').dataset.prevState || 'fight';
+    state = prevState;
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    setStatus('Timer running');
+    requestWakeLock();
+    scheduleTick();
+  }
+}
+
+// We need to save the phase before pausing so resume restores it
+const origPause = handlePause;
+function handlePause() {
+  if (state !== 'paused') {
+    document.getElementById('pauseBtn').dataset.prevState = state;
+    state = 'paused';
+    document.getElementById('pauseBtn').textContent = 'Resume';
+    setStatus('Paused');
+    releaseWakeLock();
+  } else {
+    const prev = document.getElementById('pauseBtn').dataset.prevState || 'fight';
+    state = prev;
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    setStatus('Timer running');
+    requestWakeLock();
+    scheduleTick();
+  }
+}
+
+function handleReset() {
+  state = 'idle';
+  currentRound = 1;
+  secondsLeft = CFG.roundSecs;
+  document.getElementById('startBtn').style.display = 'inline-block';
+  document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('pauseBtn').textContent = 'Pause';
+  setStatus('Tap start when ready');
+  updateRing(CFG.roundSecs, CFG.roundSecs);
+  setDisplay();
+  buildDots();
+  releaseWakeLock();
+}
+
+// ─── VOICE COMMANDS (always-on, no button needed) ────────────────────────────
+let recognition = null;
+
+function setVoiceDot(mode) {
+  const dot = document.getElementById('voiceDot');
+  dot.className = 'voice-dot' + (mode === 'active' ? ' active' : mode === 'error' ? ' error' : '');
+}
+
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    setVoiceDot('error');
+    return; // silently skip — no UI noise for unsupported browsers
+  }
+
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => setVoiceDot('active');
+
+  recognition.onresult = (e) => {
+    const last = e.results[e.results.length - 1];
+    const cmd  = last[0].transcript.trim().toLowerCase();
+    console.log('Voice:', cmd);
+    if      (/\bstart\b/.test(cmd)  && state === 'idle')                          handleStart();
+    else if (/\bpause\b/.test(cmd)  && state !== 'idle' && state !== 'done' && state !== 'paused') handlePause();
+    else if (/\bresume\b/.test(cmd) && state === 'paused')                        handlePause();
+    else if (/\breset\b/.test(cmd))                                               handleReset();
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setVoiceDot('error');
+    }
+    // 'no-speech' and 'aborted' are non-fatal — onend will restart
+  };
+
+  recognition.onend = () => {
+    // Auto-restart to keep listening forever
+    setTimeout(() => {
+      try { recognition.start(); } catch(e) {}
+    }, 300);
+  };
+
+  try { recognition.start(); } catch(e) {}
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+buildDots();
+setDisplay();
+updateRing(CFG.roundSecs, CFG.roundSecs);
+updateSubtitle();
+startVoice(); // begin listening immediately
+</script>
+</body>
+</html>
